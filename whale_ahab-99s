@@ -1,0 +1,225 @@
+/* used controller to call this REST call to upload text file as input and print result in console.
+Provided curl request postman for your reference and better understanding. divided code into 3 parts for
+better understanding and presentation. */
+
+
+import com.amazonaws.util.IOUtils;
+import com.codahale.metrics.annotation.Timed;
+import com.jaguar.nbfc.web.rest.vo.ResponseVO;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+@RestController
+@RequestMapping("/epicore")
+public class epicoreAssignment {
+
+
+/*  POST method to get words count  from input file text
+    uploading text file as multipartfile for rest call*/
+    @RequestMapping(value = "/assignment",
+        method = RequestMethod.POST,
+        produces = MediaType.APPLICATION_JSON_VALUE)
+    @Timed
+    public ResponseEntity<String> assignment(@RequestParam(value = "file") MultipartFile file) throws IOException {
+
+        String txt = "",result ="";
+        if (file != null) {
+            
+            //reading text from file inputstream
+            txt = IOUtils.toString(file.getInputStream());
+
+            List<String> lst = excludewords(txt);
+            Map<Integer, String> words = getCount(lst);
+            result  = printResult(words);
+        return new ResponseEntity<>(result, HttpStatus.OK);
+        }
+        return new ResponseEntity<>(result, HttpStatus.NO_CONTENT);
+    }
+
+    // function to exclude pronouns, preositions, conjuctions from text
+
+    private List<String> excludewords(String txt){
+        int i =0;
+        txt = txt.replaceAll("'s","");
+        txt = txt.replaceAll("'t","t");
+        txt = txt.replaceAll("I'll","");
+        txt = txt.replaceAll("ye've","");
+        txt = txt.replaceAll("\\p{Punct}"," ");
+        txt = txt.replaceAll("\\d","");
+        txt = txt.replaceAll("\r\n","");
+
+        String[] temp= txt.split(" ");
+        String[] words = new String[temp.length];
+
+        //reading words from text to array
+        for (String s:temp) {
+            s = s.replaceAll("\\s", "");
+            if (!s.equalsIgnoreCase("")) {
+                words[i] = s;
+                i++;
+            }
+        }
+
+        List<String> lst = Arrays.asList(words);
+        lst = lst.stream().filter(l -> l != null).collect(Collectors.toList());
+
+        lst = lst.stream().map(String::toLowerCase).collect(Collectors.toList());
+        List<String> tem = new ArrayList<>(lst);
+
+        // pre defined excluded words
+        String[] excl = {"so","in","a","on","an","such","into","this", "at","by","but","he","she","they","then","them","these","and","or","it","is","of","to","up","he's","that's","me","my","the","off","here","for","however","had","himself","herself","its","ago","ever","was","has","were","out","from","do","over","are","sometime","themselves","nor","being","rather","may","wont","with","as","like","onto","per","than","till","until","his","him","her","hers","if","not","did","didnt","cant","aint","does","doesnt","be","dont","cant","theres","i","been","their","there","yet","now","very","could","should","would","upon","those","where","what","why","when","which","myself","how","have","all","some","few","you","that","thus","were","who","we","us","am","sir","madam","thou","your","much","less","after","before","can","our","too","oh","let","will","only","any","mr","mrs"};
+
+       
+        for (String e:excl){
+            List<String> dummy = tem.stream().filter(f -> (f != null && f.equalsIgnoreCase(e))).collect(Collectors.toList());
+            lst.removeAll(dummy);
+        }
+        tem = new ArrayList<>(lst);
+
+ 	// excluding plural words
+        for (String s:tem){
+            if (lst.contains(s.toLowerCase()+"s")){
+                List<String> dummy = tem.stream().filter(f ->  f.equalsIgnoreCase(s+"s") ).collect(Collectors.toList());
+                lst.removeAll(dummy);
+            }
+        }
+        tem = lst.stream().filter(f-> f.length() == 1).collect(Collectors.toList());
+        lst.removeAll(tem);
+        return lst;
+    }
+
+  //function to calculate count of each word in text
+    private Map<Integer, String> getCount(List<String> words){
+        Map<Integer,String> count = new HashMap<>();
+        List<String> unq = words.stream().distinct().collect(Collectors.toList());
+        for (String s:unq){
+            List<String> cnt = words.stream().filter(f->f.equalsIgnoreCase(s)).collect(Collectors.toList());
+            count.put(cnt.size(),s);
+        }
+    
+  	//sorting count map to print output
+        Map<Integer, String> sortedMap = new TreeMap<>(Collections.reverseOrder());
+        sortedMap.putAll(count);
+        return  sortedMap;
+    }
+
+ 	//function to print output text to console 
+    private String printResult(Map<Integer,String> words){
+
+        String result = "";
+        List<String> vals = new ArrayList<>(words.values());
+        List<Integer> keys = new ArrayList<>();
+        keys.addAll(words.keySet());
+        Map<String,Integer> temp = new HashMap<>();
+
+	//OUTPUT text format
+
+        result += "a. Total word count (excluding the filtered words) : "+words.size()+"\n";
+        result += "b. Top 5 most frequent words with counts (excluding the filtered words). \n";
+        for (int i =0;i<5;i++){
+            result += vals.get(i)+" : " +keys.get(i)+" times \n";
+        }
+        result += "c. Alphabetically sorted list of all unique words (excluding the filtered words) - top 50. \n";
+        for (int i =0;i< vals.size();i++){
+            temp.put(vals.get(i),keys.get(i));
+        }
+
+	//sorting alphabetically
+
+        Map<String,Integer> map = new TreeMap<>(temp);
+        keys = new ArrayList<>(map.values());
+        vals = new ArrayList<>();
+        vals.addAll(map.keySet());
+        for (int i =0;i<50;i++){
+            result += vals.get(i)+" : " +keys.get(i)+" times \n";
+        }
+        return  result;
+    }
+
+
+}
+
+
+
+
+OUTPUT:
+-------
+
+a. Total word count (excluding the filtered words) : 174
+
+b. Top 5 most frequent words with counts (excluding the filtered words). 
+whale : 1001 times 
+one : 789 times 
+no : 520 times 
+man : 473 times 
+ahab : 465 times 
+
+c. Alphabetically sorted list of all unique words (excluding the filtered words) - top 50. 
+again : 228 times 
+ahab : 465 times 
+air : 124 times 
+among : 137 times 
+art : 37 times 
+away : 164 times 
+aye : 155 times 
+back : 143 times 
+below : 46 times 
+beneath : 61 times 
+bildad : 71 times 
+blacksmith : 16 times 
+blubber : 28 times 
+boat : 280 times 
+body : 100 times 
+bottom : 49 times 
+bunger : 13 times 
+called : 95 times 
+canal : 14 times 
+captain : 274 times 
+carpenter : 45 times 
+certain : 69 times 
+chapter : 169 times 
+cherries : 4 times 
+combined : 9 times 
+come : 159 times 
+crew : 118 times 
+cried : 153 times 
+dat : 20 times 
+day : 150 times 
+de : 35 times 
+deck : 173 times 
+ding : 6 times 
+distance : 34 times 
+don : 18 times 
+doubloon : 19 times 
+down : 331 times 
+each : 113 times 
+em : 39 times 
+end : 92 times 
+english : 33 times 
+epilogue : 2 times 
+face : 80 times 
+fading : 3 times 
+fast : 55 times 
+fedallah : 25 times 
+fin : 30 times 
+finis : 1 times 
+first : 194 times 
+fish : 152 times 
+
+
+
+// postman curl request for method call
+
+curl --location 'http://localhost:8082/epicore/assignment' \
+--header 'Cookie: JSESSIONID=F10FBD96165D5522D3E67E573793BFD3' \
+--form 'file=@"/C:/Users/girid/OneDrive/Documents/moby.txt"'
